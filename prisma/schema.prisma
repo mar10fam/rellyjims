@@ -1,0 +1,339 @@
+// We Jim — workout tracker schema
+// Better Auth tables (User, Session, Account, Verification, RateLimit) come first,
+// then the app's own models.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────────── Auth (Better Auth) ─────────────────────────────
+
+model User {
+  id              String    @id
+  name            String
+  // Better Auth requires an email; we generate `<username>@wejim.local` and never send mail.
+  email           String    @unique
+  emailVerified   Boolean   @default(false)
+  image           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // username plugin
+  username        String?   @unique
+  displayUsername String?
+
+  // admin plugin
+  role            String?   @default("user")
+  banned          Boolean?  @default(false)
+  banReason       String?
+  banExpires      DateTime?
+
+  // PIN lockout (enforced in src/lib/auth.ts hooks)
+  failedPinAttempts Int       @default(0)
+  lockedUntil       DateTime?
+
+  // preferences
+  weightUnit      String    @default("lb")
+
+  sessions        Session[]
+  accounts        Account[]
+
+  splits          Split[]
+  exercises       Exercise[]
+  workoutSessions WorkoutSession[]
+  sharesSent      SplitShare[] @relation("ShareFrom")
+  sharesReceived  SplitShare[] @relation("ShareTo")
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String? // hashed PIN
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// Rate-limit counters live in the DB because serverless instances don't share memory.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rateLimit")
+}
+
+// ───────────────────────────── Exercise library ─────────────────────────────
+
+enum LoadType {
+  WEIGHTED   // more weight = progress
+  ASSISTED   // less assistance = progress (assisted pull-ups)
+  BODYWEIGHT // no load; progress via reps, then sets
+}
+
+/// A user's personal exercise library. Splits reference these by id.
+model Exercise {
+  id        String   @id @default(cuid())
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String
+  loadType  LoadType @default(WEIGHTED)
+  /// Weight is per dumbbell / per side ("20 lbs each")
+  perSide   Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slots            ExerciseSlot[]
+  sessionExercises SessionExercise[]
+
+  @@unique([ownerId, name])
+}
+
+// ───────────────────────────── Splits ─────────────────────────────
+
+model Split {
+  id          String    @id @default(cuid())
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  /// Non-null = favorited; most recently favorited sorts first.
+  favoritedAt DateTime?
+  /// Set when this split was copied from someone else's share.
+  copiedFromSplitId String?
+  archived    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  days     SplitDay[]
+  shares   SplitShare[]
+  sessions WorkoutSession[]
+
+  @@index([ownerId, favoritedAt])
+}
+
+model SplitDay {
+  id      String  @id @default(cuid())
+  splitId String
+  split   Split   @relation(fields: [splitId], references: [id], onDelete: Cascade)
+  order   Int
+  /// "Upper Body"
+  title   String
+  /// "(2 Chest 1 Shoulder || 1 Chest 2 Shoulder)"
+  notes   String?
+
+  groups   ExerciseGroup[]
+  sessions WorkoutSession[]
+
+  @@index([splitId, order])
+}
+
+/// A numbered group of interchangeable options ("3 Lever Row / Landmine Row / Seated Cable Row").
+/// A standalone exercise is just a group with one slot.
+model ExerciseGroup {
+  id    String   @id @default(cuid())
+  dayId String
+  day   SplitDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  order Int
+  label String?
+
+  slots ExerciseSlot[]
+
+  @@index([dayId, order])
+}
+
+enum TrackingMode {
+  PROGRESSIVE // Failed / Hold / Graduate buttons + rulebook
+  MANUAL      // just log what you did
+}
+
+/// One exercise option inside a group, with its own progression rulebook.
+/// Rulebook fields are nullable so a shared split arrives "unconfigured".
+model ExerciseSlot {
+  id           String        @id @default(cuid())
+  groupId      String
+  group        ExerciseGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  exerciseId   String
+  // NoAction (checked at end of statement) so deleting a user still cascades cleanly,
+  // while deleting an exercise that a split still uses is blocked.
+  exercise     Exercise      @relation(fields: [exerciseId], references: [id], onDelete: NoAction)
+  order        Int
+  trackingMode TrackingMode  @default(PROGRESSIVE)
+  notes        String?       // "(45 bar + 12.5)"
+
+  // Rulebook (double progression)
+  targetSets   Int?   // sets to perform
+  repFloor     Int?   // reps restart here after a weight jump
+  repCeiling   Int?   // reps climb to here before the weight goes up
+  repStep      Int?   // reps added per graduation
+  weightStep   Float? // load added when reps reset
+  deloadAfterFails Int   @default(3)   // consecutive fails before suggesting a deload
+  deloadPercent    Float @default(0.1) // 10%
+
+  // Current target (where progression is right now)
+  progress SlotProgress?
+
+  sessionExercises SessionExercise[]
+
+  @@index([groupId, order])
+}
+
+model SlotProgress {
+  id         String       @id @default(cuid())
+  slotId     String       @unique
+  slot       ExerciseSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  sets       Int
+  reps       Int
+  weight     Float        @default(0)
+  failStreak Int          @default(0)
+  updatedAt  DateTime     @updatedAt
+}
+
+// ───────────────────────────── Sharing ─────────────────────────────
+
+enum ShareStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// Sends a split's structure (days, groups, exercises) to another user.
+/// Accepting deep-copies it with an empty rulebook and no progress.
+model SplitShare {
+  id         String      @id @default(cuid())
+  splitId    String
+  split      Split       @relation(fields: [splitId], references: [id], onDelete: Cascade)
+  fromUserId String
+  fromUser   User        @relation("ShareFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User        @relation("ShareTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  status     ShareStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  respondedAt DateTime?
+
+  @@index([toUserId, status])
+}
+
+// ───────────────────────────── Workouts ─────────────────────────────
+
+enum SessionStatus {
+  SELECTING // picking exercises on the day screen
+  ACTIVE    // "We Jim" pressed
+  COMPLETED
+  ABANDONED
+}
+
+model WorkoutSession {
+  id          String        @id @default(cuid())
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  splitId     String?
+  split       Split?        @relation(fields: [splitId], references: [id], onDelete: SetNull)
+  dayId       String?
+  day         SplitDay?     @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  // Snapshots so history survives split edits/deletes
+  splitName   String
+  dayTitle    String
+  status      SessionStatus @default(SELECTING)
+  startedAt   DateTime      @default(now())
+  completedAt DateTime?
+  notes       String?
+
+  exercises SessionExercise[]
+
+  @@index([userId, startedAt])
+  @@index([userId, status])
+}
+
+enum Outcome {
+  PENDING
+  FAILED    // left button
+  HELD      // middle button
+  GRADUATED // right button
+  LOGGED    // manual-tracking exercise
+  SKIPPED
+}
+
+model SessionExercise {
+  id           String         @id @default(cuid())
+  sessionId    String
+  session      WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  slotId       String?
+  slot         ExerciseSlot?  @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  exerciseId   String?
+  exercise     Exercise?      @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+  exerciseName String
+  order        Int
+  trackingMode TrackingMode
+
+  // What the rulebook asked for
+  plannedSets   Int?
+  plannedReps   Int?
+  plannedWeight Float?
+
+  // What actually happened
+  actualSets   Int?
+  actualReps   Int?
+  actualWeight Float?
+
+  outcome     Outcome   @default(PENDING)
+  // Progression result written back to SlotProgress
+  nextSets    Int?
+  nextReps    Int?
+  nextWeight  Float?
+  /// -1 down, 0 neutral, 1 up — for the report markers
+  direction   Int?
+  notes       String?
+  completedAt DateTime?
+
+  @@index([sessionId, order])
+  @@index([exerciseId])
+}
