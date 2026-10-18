@@ -47,12 +47,9 @@ export default function LoginPage() {
         onChange={(e) => setUsername(e.target.value)}
       />
 
-      <div className="flex justify-center gap-3" aria-label="PIN">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <span
-            key={i}
-            className={`h-4 w-4 rounded-full ${i < pin.length ? "bg-lime-400" : i < 4 ? "bg-neutral-700" : "bg-neutral-800"}`}
-          />
+      <div className="flex min-h-4 justify-center gap-3" aria-label="PIN">
+        {Array.from({ length: pin.length }).map((_, i) => (
+          <span key={i} className="h-4 w-4 rounded-full bg-lime-400" />
         ))}
       </div>
 
