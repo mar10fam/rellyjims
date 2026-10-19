@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CancelActiveWorkoutLink } from "./cancel-session-button";
 import { ExerciseCard, type SessionExercise } from "./exercise-card";
 import { FinishButton } from "./finish-button";
 import { OtherExercises, type PoolSlot } from "./other-exercises";
@@ -164,6 +165,8 @@ export function WorkoutCarousel({
           Change exercises
         </Link>
       )}
+
+      <CancelActiveWorkoutLink sessionId={sessionId} />
     </div>
   );
 }

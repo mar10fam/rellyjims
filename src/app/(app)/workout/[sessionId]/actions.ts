@@ -163,7 +163,7 @@ export async function finishWorkout(sessionId: string) {
   redirect(`/workout/${sessionId}/report`);
 }
 
-/** Bail on a session with nothing logged yet — frees the account up to start a different day. */
+/** Bail on a session, logged progress and all — frees the account up to start a different day. */
 export async function abandonSession(sessionId: string) {
   const user = await requireUser();
   const session = await db.workoutSession.findFirst({ where: { id: sessionId, userId: user.id } });
@@ -172,4 +172,10 @@ export async function abandonSession(sessionId: string) {
   await db.workoutSession.update({ where: { id: sessionId }, data: { status: "ABANDONED", completedAt: new Date() } });
   revalidatePath("/");
   if (session.splitId && session.dayId) revalidatePath(`/splits/${session.splitId}/days/${session.dayId}`);
+}
+
+/** Same as abandonSession, but leaves the (now-dead) workout screen for home instead of re-rendering in place. */
+export async function cancelActiveWorkout(sessionId: string) {
+  await abandonSession(sessionId);
+  redirect("/");
 }

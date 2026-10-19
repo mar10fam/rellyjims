@@ -3,6 +3,7 @@ import { ArrowRight, Plus, Star } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { getActiveSessionForUser, pickerHref } from "@/lib/workouts";
+import { CancelSessionIconButton } from "@/app/(app)/workout/[sessionId]/cancel-session-button";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,14 +38,14 @@ export default async function HomePage() {
       />
 
       {activeSession && (
-        // A SELECTING session links straight to its picker instead of bouncing
-        // through /workout/[id] first (which would just redirect it there) —
-        // one less round trip on the most common path off this screen.
-        <Link
-          href={activeSession.status === "SELECTING" ? (pickerHref(activeSession) ?? "/") : `/workout/${activeSession.id}`}
-          className="block"
-        >
-          <Card className="flex-row items-center justify-between border border-primary/40 px-4 active:bg-neutral-800">
+        <Card className="flex-row items-center justify-between gap-1 border border-primary/40 py-0 pl-4 pr-2">
+          {/* A SELECTING session links straight to its picker instead of bouncing
+              through /workout/[id] first (which would just redirect it there) —
+              one less round trip on the most common path off this screen. */}
+          <Link
+            href={activeSession.status === "SELECTING" ? (pickerHref(activeSession) ?? "/") : `/workout/${activeSession.id}`}
+            className="flex min-w-0 flex-1 items-center justify-between gap-3 py-3 active:opacity-70"
+          >
             <span className="min-w-0">
               <span className="block text-xs text-muted-foreground">Workout in progress</span>
               <span className="block truncate font-semibold">
@@ -52,8 +53,9 @@ export default async function HomePage() {
               </span>
             </span>
             <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-          </Card>
-        </Link>
+          </Link>
+          <CancelSessionIconButton sessionId={activeSession.id} />
+        </Card>
       )}
 
       {splits.length === 0 && (
