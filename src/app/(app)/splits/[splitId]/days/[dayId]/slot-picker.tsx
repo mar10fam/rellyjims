@@ -193,5 +193,5 @@ function plannedPreview(slot: {
 }
 
 function outcomeLabel(outcome: string) {
-  return { FAILED: "Failed", HELD: "Held", GRADUATED: "Graduated", LOGGED: "Logged", SKIPPED: "Skipped" }[outcome] ?? outcome;
+  return { FAILED: "Flunk", HELD: "Held", GRADUATED: "Graduated", LOGGED: "Logged", SKIPPED: "Skipped" }[outcome] ?? outcome;
 }

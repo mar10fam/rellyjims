@@ -31,12 +31,12 @@ export function ExerciseCard({
   onRemove,
 }: {
   exercise: SessionExercise;
-  onDone: () => void;
+  onDone: (updates: Partial<SessionExercise>) => void;
   onRemove: () => void;
 }) {
   const [ex, setEx] = useState(exercise);
   const [pending, startTransition] = useTransition();
-  const [showActual, setShowActual] = useState(false);
+  const [editingOutcome, setEditingOutcome] = useState<"FAILED" | "GRADUATED" | null>(null);
   const [deloadNote, setDeloadNote] = useState<string | null>(null);
 
   function submit(outcome: "HELD" | "GRADUATED" | "FAILED" | "LOGGED", actual?: { sets: number; reps: number; weight: number }) {
@@ -49,23 +49,23 @@ export function ExerciseCard({
         actualWeight: actual?.weight,
       });
       if (!res.ok) return;
-      setEx((prev) => ({
-        ...prev,
+      const updates: Partial<SessionExercise> = {
         outcome,
-        actualSets: actual?.sets ?? prev.plannedSets,
-        actualReps: actual?.reps ?? prev.plannedReps,
-        actualWeight: actual?.weight ?? prev.plannedWeight,
+        actualSets: actual?.sets ?? ex.plannedSets,
+        actualReps: actual?.reps ?? ex.plannedReps,
+        actualWeight: actual?.weight ?? ex.plannedWeight,
         nextSets: res.next?.sets ?? null,
         nextReps: res.next?.reps ?? null,
         nextWeight: res.next?.weight ?? null,
         direction: res.direction ?? null,
-      }));
+      };
+      setEx((prev) => ({ ...prev, ...updates }));
       if (res.deloadSuggestion) {
         setDeloadNote(
           `3 fails in a row — consider ${res.deloadSuggestion.sets}×${res.deloadSuggestion.reps} @ ${res.deloadSuggestion.weight} next time.`,
         );
       }
-      onDone();
+      onDone(updates);
     });
   }
 
@@ -94,25 +94,35 @@ export function ExerciseCard({
             {!!ex.plannedWeight && <span className="text-muted-foreground text-xl"> @ {ex.plannedWeight}</span>}
           </p>
 
-          {!showActual ? (
-            <div className="grid grid-cols-3 gap-2">
-              <Button type="button" variant="destructive" disabled={pending} onClick={() => setShowActual(true)}>
-                Failed
-              </Button>
-              <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("HELD")}>
-                Hold
-              </Button>
-              <Button type="button" disabled={pending} onClick={() => submit("GRADUATED")}>
-                Graduate
-              </Button>
-            </div>
+          {!editingOutcome ? (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                <Button type="button" variant="destructive" disabled={pending} onClick={() => setEditingOutcome("FAILED")}>
+                  Flunk
+                </Button>
+                <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("HELD")}>
+                  Hold
+                </Button>
+                <Button type="button" disabled={pending} onClick={() => submit("GRADUATED")}>
+                  Graduate
+                </Button>
+              </div>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setEditingOutcome("GRADUATED")}
+                className="justify-self-center text-xs text-muted-foreground underline-offset-4 hover:underline"
+              >
+                Graduate to a specific number
+              </button>
+            </>
           ) : (
             <ActualInput
               defaults={{ sets: ex.plannedSets ?? 0, reps: ex.plannedReps ?? 0, weight: ex.plannedWeight ?? 0 }}
               pending={pending}
-              confirmLabel="Confirm Failed"
-              onCancel={() => setShowActual(false)}
-              onConfirm={(actual) => submit("FAILED", actual)}
+              confirmLabel={editingOutcome === "FAILED" ? "Confirm Flunk" : "Confirm Graduate"}
+              onCancel={() => setEditingOutcome(null)}
+              onConfirm={(actual) => submit(editingOutcome, actual)}
             />
           )}
         </>
@@ -120,7 +130,7 @@ export function ExerciseCard({
         <ActualInput
           defaults={{ sets: ex.plannedSets ?? 0, reps: ex.plannedReps ?? 0, weight: ex.plannedWeight ?? 0 }}
           pending={pending}
-          confirmLabel="Log"
+          confirmLabel="Complete"
           onConfirm={(actual) => submit("LOGGED", actual)}
         />
       )}

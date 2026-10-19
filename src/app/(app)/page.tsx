@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Plus, Star } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { getActiveSessionForUser } from "@/lib/workouts";
+import { getActiveSessionForUser, pickerHref } from "@/lib/workouts";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -37,9 +37,13 @@ export default async function HomePage() {
       />
 
       {activeSession && (
-        // Links through /workout/[id], whose own redirect sends a still-SELECTING
-        // session back to its picker — one fallback path instead of two.
-        <Link href={`/workout/${activeSession.id}`} className="block">
+        // A SELECTING session links straight to its picker instead of bouncing
+        // through /workout/[id] first (which would just redirect it there) —
+        // one less round trip on the most common path off this screen.
+        <Link
+          href={activeSession.status === "SELECTING" ? (pickerHref(activeSession) ?? "/") : `/workout/${activeSession.id}`}
+          className="block"
+        >
           <Card className="flex-row items-center justify-between border border-primary/40 px-4 active:bg-neutral-800">
             <span className="min-w-0">
               <span className="block text-xs text-muted-foreground">Workout in progress</span>

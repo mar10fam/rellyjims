@@ -218,6 +218,10 @@ model ExerciseSlot {
   deloadAfterFails Int   @default(3)   // consecutive fails before suggesting a deload
   deloadPercent    Float @default(0.1) // 10%
 
+  // Manual-tracking defaults (no progression engine — just a fixed target to log against)
+  targetReps   Int?   // reps to perform
+  targetWeight Float? // weight to use
+
   // Current target (where progression is right now)
   progress SlotProgress?
 

@@ -44,6 +44,22 @@ describe("double progression", () => {
     expect(r.deloadSuggestion).toBeUndefined();
   });
 
+  it("graduates mechanically when no actual is given", () => {
+    const r = applyOutcome(bench, { sets: 3, reps: 11, weight: 65, failStreak: 0 }, "GRADUATED");
+    expect(r.next).toEqual({ sets: 3, reps: 12, weight: 65, failStreak: 0 });
+    expect(r.direction).toBe(1);
+  });
+
+  it("supports a manual/partial graduation to a custom target", () => {
+    const r = applyOutcome(bench, { sets: 3, reps: 8, weight: 65, failStreak: 0 }, "GRADUATED", {
+      sets: 3,
+      reps: 10,
+      weight: 65,
+    });
+    expect(r.next).toEqual({ sets: 3, reps: 10, weight: 65, failStreak: 0 });
+    expect(r.direction).toBe(1);
+  });
+
   it("suggests a deload after repeated fails", () => {
     const r = applyOutcome(bench, { sets: 3, reps: 8, weight: 100, failStreak: 2 }, "FAILED", {
       sets: 3,

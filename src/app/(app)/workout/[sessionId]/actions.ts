@@ -50,8 +50,12 @@ export async function submitOutcome(input: {
   const progress = await ensureSlotProgress(ex.slot);
   const cur = { sets: progress.sets, reps: progress.reps, weight: progress.weight, failStreak: progress.failStreak };
 
+  // Present whenever the client went through the editable confirm step — always
+  // for FAILED, optionally for GRADUATED (a manual/partial graduation). A plain
+  // tap on "Graduate" sends no actual values, leaving this undefined so
+  // applyOutcome falls back to the mechanical rep/weight-step bump.
   const actual =
-    input.outcome === "FAILED"
+    input.actualSets !== undefined
       ? {
           sets: input.actualSets ?? cur.sets,
           reps: input.actualReps ?? cur.reps,
@@ -120,6 +124,10 @@ export async function addExerciseToSession(sessionId: string, slotId: string) {
     plannedSets = progress.sets;
     plannedReps = progress.reps;
     plannedWeight = progress.weight;
+  } else {
+    plannedSets = slot.targetSets;
+    plannedReps = slot.targetReps;
+    plannedWeight = slot.targetWeight;
   }
 
   const created = await db.sessionExercise.create({

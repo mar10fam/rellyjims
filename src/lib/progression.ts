@@ -75,7 +75,12 @@ export function applyOutcome(
   rules: Rulebook,
   cur: ProgressState,
   outcome: ProgressOutcome,
-  /** Required for FAILED: what was actually done. Becomes the new baseline. */
+  /**
+   * Required for FAILED: what was actually done. Becomes the new baseline.
+   * Optional for GRADUATED: overrides the mechanical rep/weight-step bump,
+   * so a mid-session "I'm doing better than planned" can jump straight to a
+   * custom target instead of waiting for the next session's normal step.
+   */
   actual?: Target,
 ): ProgressResult {
   if (outcome === "HELD") {
@@ -83,7 +88,9 @@ export function applyOutcome(
   }
 
   if (outcome === "GRADUATED") {
-    return { next: { ...graduate(rules, cur), failStreak: 0 }, direction: 1 };
+    const next = actual ?? graduate(rules, cur);
+    const direction = actual ? compare(rules.loadType, cur, actual) : 1;
+    return { next: { ...next, failStreak: 0 }, direction };
   }
 
   // FAILED — restart progression from whatever was actually done.

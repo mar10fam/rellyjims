@@ -14,6 +14,8 @@ type RulebookDefaults = {
   repCeiling?: number | null;
   repStep?: number | null;
   weightStep?: number | null;
+  targetReps?: number | null;
+  targetWeight?: number | null;
 };
 
 // Shared by the "add exercise option" and "edit exercise option" forms: a
@@ -56,7 +58,7 @@ export function RulebookFields({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="PROGRESSIVE">Progressive (Failed / Hold / Graduate)</SelectItem>
+            <SelectItem value="PROGRESSIVE">Progressive (Flunk / Hold / Graduate)</SelectItem>
             <SelectItem value="MANUAL">Manual (just log it)</SelectItem>
           </SelectContent>
         </Select>
@@ -88,6 +90,14 @@ export function RulebookFields({
           </div>
         </>
       )}
+
+      {trackingMode === "MANUAL" && (
+        <div className="grid grid-cols-3 gap-3">
+          <Field label="Sets" name="targetSets" defaultValue={defaults?.targetSets} />
+          <Field label="Reps" name="targetReps" defaultValue={defaults?.targetReps} />
+          <Field label="Weight" name="targetWeight" defaultValue={defaults?.targetWeight} step="0.5" />
+        </div>
+      )}
     </div>
   );
 }
@@ -103,7 +113,7 @@ function Field({
   name: string;
   defaultValue?: number | null;
   step?: string;
-  inputRef: RefObject<HTMLInputElement | null>;
+  inputRef?: RefObject<HTMLInputElement | null>;
 }) {
   return (
     <div className="grid gap-1">

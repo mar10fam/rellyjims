@@ -15,12 +15,12 @@ export const instant = false;
 export default async function Page({ params }: { params: Promise<{ splitId: string; dayId: string }> }) {
   const user = await requireUser();
   const { splitId, dayId } = await params;
-  const day = await getDayForPicker(dayId, user.id);
+  // Only one non-terminal workout allowed per account, checked alongside the
+  // day fetch since the two don't depend on each other.
+  const [day, activeElsewhere] = await Promise.all([getDayForPicker(dayId, user.id), getActiveSessionForUser(user.id)]);
   if (!day || day.splitId !== splitId) notFound();
 
-  // Only one non-terminal workout allowed per account. If one's already going
-  // for a different day, send the user there instead of starting a second.
-  const activeElsewhere = await getActiveSessionForUser(user.id);
+  // If one's already going for a different day, send the user there instead of starting a second.
   if (activeElsewhere && activeElsewhere.dayId !== dayId) {
     return (
       <div className="grid gap-6">

@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
-import { getDayForPicker, ownedSession } from "@/lib/workouts";
+import { getDayForPicker, ownedSession, pickerHref as getPickerHref } from "@/lib/workouts";
 import { PageHeader } from "@/components/page-header";
 import { WorkoutCarousel } from "./workout-carousel";
-import { FinishButton } from "./finish-button";
 import type { PoolSlot } from "./other-exercises";
 
 // Reads the session directly (not behind its own Suspense boundary); see
@@ -17,13 +16,11 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
   if (!session) notFound();
 
   if (session.status === "SELECTING") {
-    redirect(session.splitId && session.dayId ? `/splits/${session.splitId}/days/${session.dayId}` : "/");
+    redirect(getPickerHref(session) ?? "/");
   }
   if (session.status === "COMPLETED" || session.status === "ABANDONED") {
     redirect(`/workout/${sessionId}/report`);
   }
-
-  const pickerHref = session.splitId && session.dayId ? `/splits/${session.splitId}/days/${session.dayId}` : null;
 
   const day = session.dayId ? await getDayForPicker(session.dayId, user.id) : null;
   const otherSlots: PoolSlot[] =
@@ -38,20 +35,13 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
 
   return (
     <div className="grid gap-4">
-      <PageHeader
-        title={session.dayTitle}
-        action={
-          <FinishButton sessionId={session.id} variant="ghost" size="sm">
-            Finish
-          </FinishButton>
-        }
-      />
+      <PageHeader title={session.dayTitle} />
       <p className="-mt-3 text-sm text-muted-foreground">{session.splitName}</p>
       <WorkoutCarousel
         sessionId={session.id}
         exercises={session.exercises}
         otherSlots={otherSlots}
-        pickerHref={pickerHref}
+        pickerHref={getPickerHref(session)}
       />
     </div>
   );

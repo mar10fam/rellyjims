@@ -45,6 +45,10 @@ export async function syncSelection(sessionId: string, addSlotIds: string[], rem
         plannedSets = progress.sets;
         plannedReps = progress.reps;
         plannedWeight = progress.weight;
+      } else {
+        plannedSets = slot.targetSets;
+        plannedReps = slot.targetReps;
+        plannedWeight = slot.targetWeight;
       }
 
       // Default order follows the day's own group/slot layout, not pick order —

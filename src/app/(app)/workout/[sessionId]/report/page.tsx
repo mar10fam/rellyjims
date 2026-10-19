@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { ownedSession } from "@/lib/workouts";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 // Reads the session directly (not behind its own Suspense boundary); see
 // (app)/layout.tsx for why this opts out of instant-navigation validation.
@@ -30,26 +32,39 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
 
       {done.length > 0 && (
         <ul className="grid gap-2">
-          {done.map((ex) => (
-            <li key={ex.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-900 px-4 py-3">
-              <div className="min-w-0">
-                <p className="font-medium">{ex.exerciseName}</p>
-                {ex.plannedSets != null && (
-                  <p className="text-xs text-muted-foreground">
-                    Planned {ex.plannedSets}×{ex.plannedReps}
-                    {ex.plannedWeight ? ` @ ${ex.plannedWeight}` : ""}
-                  </p>
-                )}
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-lg font-semibold">
-                  {marker(ex.direction)} {ex.actualSets}×{ex.actualReps}
-                  {ex.actualWeight ? ` @ ${ex.actualWeight}` : ""}
-                </p>
-                <Badge variant="secondary">{outcomeLabel(ex.outcome)}</Badge>
-              </div>
-            </li>
-          ))}
+          {done.map((ex) => {
+            const graduated = ex.outcome === "GRADUATED";
+            return (
+              <li key={ex.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-900 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="font-medium">{ex.exerciseName}</p>
+                  {ex.plannedSets != null && !graduated && (
+                    <p className="text-xs text-muted-foreground">
+                      Planned {ex.plannedSets}×{ex.plannedReps}
+                      {ex.plannedWeight ? ` @ ${ex.plannedWeight}` : ""}
+                    </p>
+                  )}
+                </div>
+                <div className="shrink-0 text-right">
+                  {graduated ? (
+                    <p className="text-lg font-semibold text-emerald-500">
+                      {formatTarget(ex.plannedSets, ex.plannedReps, ex.plannedWeight)}
+                      <span className="mx-1 text-muted-foreground">→</span>
+                      {formatTarget(ex.nextSets, ex.nextReps, ex.nextWeight)}
+                    </p>
+                  ) : (
+                    <p className="text-lg font-semibold">
+                      {ex.actualSets}×{ex.actualReps}
+                      {ex.actualWeight ? ` @ ${ex.actualWeight}` : ""}
+                    </p>
+                  )}
+                  <Badge variant="secondary" className={graduated ? "text-emerald-500" : undefined}>
+                    {outcomeLabel(ex.outcome)}
+                  </Badge>
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -78,17 +93,26 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
           </ul>
         </section>
       )}
+
+      <div className="flex gap-2">
+        {session.splitId && (
+          <Button asChild variant="secondary" className="flex-1">
+            <Link href={`/splits/${session.splitId}`}>Back to days</Link>
+          </Button>
+        )}
+        <Button asChild className="flex-1">
+          <Link href="/">Home</Link>
+        </Button>
+      </div>
     </div>
   );
 }
 
-function marker(direction: number | null) {
-  if (direction === 1) return "▲";
-  if (direction === -1) return "▼";
-  if (direction === 0) return "●";
-  return "";
+function formatTarget(sets: number | null, reps: number | null, weight: number | null) {
+  if (sets == null || reps == null) return "—";
+  return `${sets}×${reps}${weight ? ` @ ${weight}` : ""}`;
 }
 
 function outcomeLabel(outcome: string) {
-  return { FAILED: "Failed", HELD: "Held", GRADUATED: "Graduated", LOGGED: "Logged" }[outcome] ?? outcome;
+  return { FAILED: "Flunk", HELD: "Held", GRADUATED: "Graduated", LOGGED: "Logged" }[outcome] ?? outcome;
 }

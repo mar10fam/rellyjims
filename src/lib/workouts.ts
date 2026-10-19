@@ -105,6 +105,11 @@ export function getActiveSessionForUser(userId: string) {
   });
 }
 
+/** Where a SELECTING session's picker lives, or null if it's missing its split/day (deleted since). */
+export function pickerHref(session: { splitId: string | null; dayId: string | null }) {
+  return session.splitId && session.dayId ? `/splits/${session.splitId}/days/${session.dayId}` : null;
+}
+
 export function ownedSession(sessionId: string, userId: string) {
   return db.workoutSession.findFirst({
     where: { id: sessionId, userId },

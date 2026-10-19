@@ -58,7 +58,7 @@ src/app/(app)/…             Home (favorites first) + stubs for the remaining s
 
 - **Group:** a numbered set of interchangeable options ("3: Lever Row / Landmine Row / Seated Cable Row"). Pick any of them; nothing is enforced.
 - **Slot:** one option in a group, with its own **tracking mode** (`PROGRESSIVE` or `MANUAL`) and **rulebook**: `targetSets`, `repFloor`, `repCeiling`, `repStep`, `weightStep`, plus deload settings.
-- **Outcomes:** *Failed* (enter what you actually did, which becomes the new baseline), *Hold* (same target next time), *Graduate* (+`repStep` reps; at the ceiling, ±`weightStep` and reps reset to the floor). Assisted exercises move the weight *down*; bodyweight adds a set.
+- **Outcomes:** *Flunk* (enter what you actually did, which becomes the new baseline), *Hold* (same target next time), *Graduate* (+`repStep` reps; at the ceiling, ±`weightStep` and reps reset to the floor). Assisted exercises move the weight *down*; bodyweight adds a set.
 - **Deload:** after `deloadAfterFails` consecutive fails, the engine suggests dropping about `deloadPercent`.
 - **Sharing:** splits are personal. Sharing sends the structure only; the recipient's copy arrives with an empty rulebook and no progress.
 
@@ -67,6 +67,6 @@ src/app/(app)/…             Home (favorites first) + stubs for the remaining s
 - [x] Split editor + presets UI (`/splits/[splitId]`, `/splits/[splitId]/days/[dayId]/edit`)
 - [x] Notes importer UI (`/splits/[splitId]/import`)
 - [x] Day picker → "Rellyjim" (creates a `WorkoutSession`)
-- [x] Swipeable workout screen with Failed / Hold / Graduate
+- [x] Swipeable workout screen with Flunk / Hold / Graduate
 - [x] End-of-workout report with ▲ ● ▼ markers
 - [ ] History, sharing inbox, PWA icons

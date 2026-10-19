@@ -69,6 +69,12 @@ const rulebookSchema = z
   })
   .refine((d) => d.repCeiling >= d.repFloor, { message: "Rep ceiling must be ≥ rep floor", path: ["repCeiling"] });
 
+const manualSchema = z.object({
+  targetSets: z.coerce.number().int().min(1, "Required").max(10),
+  targetReps: z.coerce.number().int().min(1, "Required").max(100),
+  targetWeight: z.coerce.number().min(0).max(1000),
+});
+
 const slotBaseSchema = z.object({
   groupId: z.string().min(1),
   name: z.string().trim().min(1, "Exercise name is required").max(60),
@@ -88,10 +94,15 @@ export async function createSlot(_: ActionState, form: FormData): Promise<Action
   if (!group) return { error: "Group not found" };
 
   let rulebook: z.infer<typeof rulebookSchema> | null = null;
+  let manual: z.infer<typeof manualSchema> | null = null;
   if (base.data.trackingMode === "PROGRESSIVE") {
     const parsedRb = rulebookSchema.safeParse(raw);
     if (!parsedRb.success) return { error: parsedRb.error.issues[0].message };
     rulebook = parsedRb.data;
+  } else {
+    const parsedManual = manualSchema.safeParse(raw);
+    if (!parsedManual.success) return { error: parsedManual.error.issues[0].message };
+    manual = parsedManual.data;
   }
 
   const exercise = await findOrCreateExercise(user.id, base.data.name, base.data.loadType, base.data.perSide === "on");
@@ -105,6 +116,7 @@ export async function createSlot(_: ActionState, form: FormData): Promise<Action
       trackingMode: base.data.trackingMode,
       notes: base.data.notes || null,
       ...(rulebook ?? {}),
+      ...(manual ?? {}),
     },
   });
   revalidatePath(editPath(group.day.splitId, group.day.id));
@@ -127,10 +139,15 @@ export async function updateSlot(_: ActionState, form: FormData): Promise<Action
   if (!slot) return { error: "Exercise not found" };
 
   let rulebook: z.infer<typeof rulebookSchema> | null = null;
+  let manual: z.infer<typeof manualSchema> | null = null;
   if (base.data.trackingMode === "PROGRESSIVE") {
     const parsedRb = rulebookSchema.safeParse(raw);
     if (!parsedRb.success) return { error: parsedRb.error.issues[0].message };
     rulebook = parsedRb.data;
+  } else {
+    const parsedManual = manualSchema.safeParse(raw);
+    if (!parsedManual.success) return { error: parsedManual.error.issues[0].message };
+    manual = parsedManual.data;
   }
 
   await db.exerciseSlot.update({
@@ -138,11 +155,13 @@ export async function updateSlot(_: ActionState, form: FormData): Promise<Action
     data: {
       trackingMode: base.data.trackingMode,
       notes: base.data.notes || null,
-      targetSets: rulebook?.targetSets ?? null,
+      targetSets: rulebook?.targetSets ?? manual?.targetSets ?? null,
       repFloor: rulebook?.repFloor ?? null,
       repCeiling: rulebook?.repCeiling ?? null,
       repStep: rulebook?.repStep ?? null,
       weightStep: rulebook?.weightStep ?? null,
+      targetReps: manual?.targetReps ?? null,
+      targetWeight: manual?.targetWeight ?? null,
     },
   });
   revalidatePath(editPath(slot.group.day.splitId, slot.group.day.id));

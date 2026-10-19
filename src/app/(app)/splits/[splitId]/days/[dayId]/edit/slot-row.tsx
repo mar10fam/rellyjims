@@ -13,6 +13,8 @@ export type Slot = {
   repCeiling: number | null;
   repStep: number | null;
   weightStep: number | null;
+  targetReps: number | null;
+  targetWeight: number | null;
   exercise: { name: string; loadType: "WEIGHTED" | "ASSISTED" | "BODYWEIGHT"; perSide: boolean };
 };
 
@@ -53,6 +55,8 @@ export function SlotRow({ slot }: { slot: Slot }) {
 }
 
 function rulebookSummary(slot: Slot) {
-  if (slot.trackingMode === "MANUAL") return "Manual";
+  if (slot.trackingMode === "MANUAL") {
+    return `${slot.targetSets}×${slot.targetReps}${slot.targetWeight ? ` @ ${slot.targetWeight}` : ""}`;
+  }
   return `${slot.targetSets}×${slot.repFloor}–${slot.repCeiling}${slot.weightStep ? ` · +${slot.weightStep}` : ""}`;
 }
