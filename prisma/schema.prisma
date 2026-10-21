@@ -210,11 +210,12 @@ model ExerciseSlot {
   notes        String?       // "(45 bar + 12.5)"
 
   // Rulebook (double progression)
-  targetSets   Int?   // sets to perform
-  repFloor     Int?   // reps restart here after a weight jump
-  repCeiling   Int?   // reps climb to here before the weight goes up
-  repStep      Int?   // reps added per graduation
-  weightStep   Float? // load added when reps reset
+  targetSets     Int?    // sets to perform
+  repFloor       Int?    // reps restart here after a weight jump
+  repCeiling     Int?    // reps climb to here before the weight goes up
+  repStep        Int?    // reps added per graduation
+  weightStep     Float?  // load added when reps reset
+  startingWeight Float?  // seeds SlotProgress.weight the first time this slot is picked
   deloadAfterFails Int   @default(3)   // consecutive fails before suggesting a deload
   deloadPercent    Float @default(0.1) // 10%
 

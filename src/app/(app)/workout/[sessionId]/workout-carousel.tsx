@@ -181,7 +181,7 @@ function DoneList({ exercises }: { exercises: SessionExercise[] }) {
             <span className="shrink-0 text-muted-foreground">Skipped</span>
           ) : ex.outcome === "GRADUATED" ? (
             <span className="shrink-0 font-medium text-emerald-500">
-              {formatTarget(ex.plannedSets, ex.plannedReps, ex.plannedWeight)}
+              {formatTarget(ex.actualSets, ex.actualReps, ex.actualWeight)}
               <span className="mx-1 text-muted-foreground">→</span>
               {formatTarget(ex.nextSets, ex.nextReps, ex.nextWeight)}
             </span>

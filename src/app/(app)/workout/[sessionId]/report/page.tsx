@@ -38,7 +38,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
               <li key={ex.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-900 px-4 py-3">
                 <div className="min-w-0">
                   <p className="font-medium">{ex.exerciseName}</p>
-                  {ex.plannedSets != null && !graduated && (
+                  {ex.plannedSets != null && (
                     <p className="text-xs text-muted-foreground">
                       Planned {ex.plannedSets}×{ex.plannedReps}
                       {ex.plannedWeight ? ` @ ${ex.plannedWeight}` : ""}
@@ -48,7 +48,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
                 <div className="shrink-0 text-right">
                   {graduated ? (
                     <p className="text-lg font-semibold text-emerald-500">
-                      {formatTarget(ex.plannedSets, ex.plannedReps, ex.plannedWeight)}
+                      {formatTarget(ex.actualSets, ex.actualReps, ex.actualWeight)}
                       <span className="mx-1 text-muted-foreground">→</span>
                       {formatTarget(ex.nextSets, ex.nextReps, ex.nextWeight)}
                     </p>

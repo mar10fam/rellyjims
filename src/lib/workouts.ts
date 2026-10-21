@@ -55,6 +55,7 @@ export async function ensureSlotProgress(slot: {
   repCeiling: number | null;
   repStep: number | null;
   weightStep: number | null;
+  startingWeight: number | null;
   deloadAfterFails: number;
   deloadPercent: number;
   exercise: { loadType: "WEIGHTED" | "ASSISTED" | "BODYWEIGHT" };
@@ -63,7 +64,7 @@ export async function ensureSlotProgress(slot: {
   if (existing) return existing;
 
   const rules = slotRulebook(slot);
-  const start = initialState(rules);
+  const start = initialState(rules, slot.startingWeight ?? 0);
   return db.slotProgress.create({
     data: { slotId: slot.id, sets: start.sets, reps: start.reps, weight: start.weight },
   });
@@ -116,7 +117,10 @@ export function ownedSession(sessionId: string, userId: string) {
     include: {
       exercises: {
         orderBy: { order: "asc" },
-        include: { exercise: { select: { loadType: true, perSide: true } } },
+        include: {
+          exercise: { select: { loadType: true, perSide: true } },
+          slot: { select: { repFloor: true, repCeiling: true } },
+        },
       },
     },
   });

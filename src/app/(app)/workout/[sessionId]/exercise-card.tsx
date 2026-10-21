@@ -23,6 +23,7 @@ export type SessionExercise = {
   outcome: "PENDING" | "FAILED" | "HELD" | "GRADUATED" | "LOGGED" | "SKIPPED";
   direction: number | null;
   exercise: { loadType: LoadType; perSide: boolean } | null;
+  slot: { repFloor: number | null; repCeiling: number | null } | null;
 };
 
 export function ExerciseCard({
@@ -38,12 +39,17 @@ export function ExerciseCard({
   const [pending, startTransition] = useTransition();
   const [editingOutcome, setEditingOutcome] = useState<"FAILED" | "GRADUATED" | null>(null);
   const [deloadNote, setDeloadNote] = useState<string | null>(null);
+  // The weight actually loaded on the bar today — defaults to the planned
+  // weight but is editable right up until a quick Hold/Graduate tap, so
+  // "the gym only had different plates" doesn't require the full edit panel.
+  const [weight, setWeight] = useState(ex.plannedWeight ?? 0);
 
   function submit(outcome: "HELD" | "GRADUATED" | "FAILED" | "LOGGED", actual?: { sets: number; reps: number; weight: number }) {
     startTransition(async () => {
       const res = await submitOutcome({
         sessionExerciseId: ex.id,
         outcome,
+        weightOverride: actual ? undefined : weight,
         actualSets: actual?.sets,
         actualReps: actual?.reps,
         actualWeight: actual?.weight,
@@ -53,7 +59,7 @@ export function ExerciseCard({
         outcome,
         actualSets: actual?.sets ?? ex.plannedSets,
         actualReps: actual?.reps ?? ex.plannedReps,
-        actualWeight: actual?.weight ?? ex.plannedWeight,
+        actualWeight: actual?.weight ?? weight,
         nextSets: res.next?.sets ?? null,
         nextReps: res.next?.reps ?? null,
         nextWeight: res.next?.weight ?? null,
@@ -89,10 +95,16 @@ export function ExerciseCard({
     <Card title={ex.exerciseName} exerciseMeta={ex.exercise}>
       {ex.trackingMode === "PROGRESSIVE" ? (
         <>
-          <p className="text-3xl font-black">
-            {ex.plannedSets} × {ex.plannedReps}
-            {!!ex.plannedWeight && <span className="text-muted-foreground text-xl"> @ {ex.plannedWeight}</span>}
-          </p>
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-3xl font-black">
+              {ex.plannedSets} × {ex.plannedReps}
+            </p>
+            {!editingOutcome && (
+              <div className="w-24">
+                <NumberField label="Weight" value={weight} onChange={setWeight} step={0.5} />
+              </div>
+            )}
+          </div>
 
           {!editingOutcome ? (
             <>
@@ -118,7 +130,12 @@ export function ExerciseCard({
             </>
           ) : (
             <ActualInput
-              defaults={{ sets: ex.plannedSets ?? 0, reps: ex.plannedReps ?? 0, weight: ex.plannedWeight ?? 0 }}
+              defaults={{ sets: ex.plannedSets ?? 0, reps: ex.plannedReps ?? 0, weight }}
+              repRange={
+                ex.slot?.repFloor != null && ex.slot?.repCeiling != null
+                  ? { floor: ex.slot.repFloor, ceiling: ex.slot.repCeiling }
+                  : undefined
+              }
               pending={pending}
               confirmLabel={editingOutcome === "FAILED" ? "Confirm Flunk" : "Confirm Graduate"}
               onCancel={() => setEditingOutcome(null)}
@@ -190,12 +207,15 @@ function DoneSummary({ ex }: { ex: SessionExercise }) {
 
 function ActualInput({
   defaults,
+  repRange,
   pending,
   confirmLabel,
   onConfirm,
   onCancel,
 }: {
   defaults: { sets: number; reps: number; weight: number };
+  /** Reps must fall inclusively within this range — weight is unrestricted. */
+  repRange?: { floor: number; ceiling: number };
   pending: boolean;
   confirmLabel: string;
   onConfirm: (actual: { sets: number; reps: number; weight: number }) => void;
@@ -205,20 +225,39 @@ function ActualInput({
   const [reps, setReps] = useState(defaults.reps);
   const [weight, setWeight] = useState(defaults.weight);
 
+  const repsValid = !repRange || (reps >= repRange.floor && reps <= repRange.ceiling);
+
   return (
     <div className="grid gap-3">
       <div className="grid grid-cols-3 gap-2">
         <NumberField label="Sets" value={sets} onChange={setSets} />
-        <NumberField label="Reps" value={reps} onChange={setReps} />
+        <NumberField
+          label="Reps"
+          value={reps}
+          onChange={setReps}
+          min={repRange?.floor}
+          max={repRange?.ceiling}
+          invalid={!repsValid}
+        />
         <NumberField label="Weight" value={weight} onChange={setWeight} step={0.5} />
       </div>
+      {repRange && !repsValid && (
+        <p className="text-center text-xs text-destructive">
+          Reps must be between {repRange.floor} and {repRange.ceiling}
+        </p>
+      )}
       <div className="flex gap-2">
         {onCancel && (
           <Button type="button" variant="ghost" disabled={pending} onClick={onCancel}>
             Cancel
           </Button>
         )}
-        <Button type="button" className="flex-1" disabled={pending} onClick={() => onConfirm({ sets, reps, weight })}>
+        <Button
+          type="button"
+          className="flex-1"
+          disabled={pending || !repsValid}
+          onClick={() => onConfirm({ sets, reps, weight })}
+        >
           {pending ? "Saving…" : confirmLabel}
         </Button>
       </div>
@@ -231,22 +270,37 @@ function NumberField({
   value,
   onChange,
   step,
+  min,
+  max,
+  invalid,
 }: {
   label: string;
   value: number;
   onChange: (v: number) => void;
   step?: number;
+  min?: number;
+  max?: number;
+  invalid?: boolean;
 }) {
   return (
     <label className="grid gap-1 text-center text-xs text-muted-foreground">
       {label}
+      {min != null && max != null && (
+        <span className="text-[10px] text-muted-foreground/70">
+          {min}–{max}
+        </span>
+      )}
       <input
         type="number"
         inputMode="decimal"
         step={step ?? 1}
+        min={min}
+        max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-11 w-full rounded-lg border border-input bg-transparent text-center text-lg outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        className={`h-11 w-full rounded-lg border bg-transparent text-center text-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 ${
+          invalid ? "border-destructive focus-visible:border-destructive" : "border-input focus-visible:border-ring"
+        }`}
       />
     </label>
   );

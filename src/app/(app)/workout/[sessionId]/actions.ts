@@ -23,6 +23,13 @@ export async function submitOutcome(input: {
   actualSets?: number;
   actualReps?: number;
   actualWeight?: number;
+  /**
+   * Weight actually used this time, for a quick Hold/Graduate tap (no full
+   * actual-input panel involved) — e.g. the gym didn't have the planned
+   * plates. Becomes the new progression baseline, same as a custom actual
+   * weight would, but leaves sets/reps to follow the outcome's normal rules.
+   */
+  weightOverride?: number;
 }): Promise<SubmitResult> {
   const user = await requireUser();
   const ex = await ownedSessionExercise(input.sessionExerciseId, user.id);
@@ -48,7 +55,15 @@ export async function submitOutcome(input: {
 
   const rules = slotRulebook(ex.slot);
   const progress = await ensureSlotProgress(ex.slot);
-  const cur = { sets: progress.sets, reps: progress.reps, weight: progress.weight, failStreak: progress.failStreak };
+  if (input.weightOverride !== undefined && input.weightOverride < 0) {
+    return { ok: false, error: "Weight can't be negative" };
+  }
+  const cur = {
+    sets: progress.sets,
+    reps: progress.reps,
+    weight: input.weightOverride ?? progress.weight,
+    failStreak: progress.failStreak,
+  };
 
   // Present whenever the client went through the editable confirm step — always
   // for FAILED, optionally for GRADUATED (a manual/partial graduation). A plain
@@ -62,6 +77,13 @@ export async function submitOutcome(input: {
           weight: input.actualWeight ?? cur.weight,
         }
       : undefined;
+
+  // Weight is free-form, but reps must stay inside the rulebook's range — a
+  // mirror of the client-side check in ActualInput, enforced again here since
+  // this action can be called directly.
+  if (actual && (actual.reps < rules.repFloor || actual.reps > rules.repCeiling)) {
+    return { ok: false, error: `Reps must be between ${rules.repFloor} and ${rules.repCeiling}` };
+  }
 
   const result = applyOutcome(rules, cur, input.outcome as ProgressOutcome, actual);
 
@@ -142,7 +164,10 @@ export async function addExerciseToSession(sessionId: string, slotId: string) {
       plannedReps,
       plannedWeight,
     },
-    include: { exercise: { select: { loadType: true, perSide: true } } },
+    include: {
+      exercise: { select: { loadType: true, perSide: true } },
+      slot: { select: { repFloor: true, repCeiling: true } },
+    },
   });
   revalidatePath(`/workout/${sessionId}`);
   return created;

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { loadTypeLabel } from "@/lib/progression";
@@ -13,12 +16,18 @@ export type Slot = {
   repCeiling: number | null;
   repStep: number | null;
   weightStep: number | null;
+  startingWeight: number | null;
   targetReps: number | null;
   targetWeight: number | null;
   exercise: { name: string; loadType: "WEIGHTED" | "ASSISTED" | "BODYWEIGHT"; perSide: boolean };
 };
 
 export function SlotRow({ slot }: { slot: Slot }) {
+  const [editOpen, setEditOpen] = useState(false);
+  // Remounts the form (and its useActionState) fresh every time it's reopened,
+  // so a leftover "Saved" message from last time never lingers into this one.
+  const [resetKey, setResetKey] = useState(0);
+
   return (
     <li className="grid gap-2 rounded-lg bg-neutral-900 p-3">
       <div className="flex items-start gap-2">
@@ -42,12 +51,20 @@ export function SlotRow({ slot }: { slot: Slot }) {
         </form>
       </div>
 
-      <details className="group">
+      <details
+        className="group"
+        open={editOpen}
+        onToggle={(e) => {
+          const open = e.currentTarget.open;
+          if (open) setResetKey((k) => k + 1);
+          setEditOpen(open);
+        }}
+      >
         <summary className="flex w-fit cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground">
           <Pencil className="size-3" /> Edit
         </summary>
         <div className="pt-2">
-          <EditSlotForm slot={slot} />
+          <EditSlotForm key={resetKey} slot={slot} onSaved={() => setEditOpen(false)} />
         </div>
       </details>
     </li>

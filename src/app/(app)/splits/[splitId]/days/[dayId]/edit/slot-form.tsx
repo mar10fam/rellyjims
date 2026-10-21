@@ -107,6 +107,7 @@ function AddSlotFields({
 
 export function EditSlotForm({
   slot,
+  onSaved,
 }: {
   slot: {
     id: string;
@@ -117,13 +118,36 @@ export function EditSlotForm({
     repCeiling: number | null;
     repStep: number | null;
     weightStep: number | null;
+    startingWeight: number | null;
+    exercise: { loadType: "WEIGHTED" | "ASSISTED" | "BODYWEIGHT" };
   };
+  onSaved?: () => void;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(updateSlot, null);
+
+  useEffect(() => {
+    if (state?.ok) onSaved?.();
+  }, [state, onSaved]);
 
   return (
     <form action={action} className="grid gap-3 rounded-lg bg-neutral-950 p-3">
       <input type="hidden" name="slotId" value={slot.id} />
+      <div className="grid gap-1.5">
+        <Label htmlFor={`loadType-${slot.id}`}>Load type</Label>
+        <Select name="loadType" defaultValue={slot.exercise.loadType}>
+          <SelectTrigger id={`loadType-${slot.id}`} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="WEIGHTED">Weighted</SelectItem>
+            <SelectItem value="ASSISTED">Assisted</SelectItem>
+            <SelectItem value="BODYWEIGHT">Bodyweight</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          Applies everywhere this exercise is used, and resets its current progression weight.
+        </p>
+      </div>
       <RulebookFields defaultTrackingMode={slot.trackingMode} defaults={slot} />
       <div className="grid gap-1.5">
         <Label htmlFor={`notes-${slot.id}`}>Notes (optional)</Label>

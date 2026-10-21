@@ -33,6 +33,20 @@ export async function createGroup(form: FormData) {
   revalidatePath(editPath(day.splitId, dayId));
 }
 
+export async function updateGroupLabel(_: ActionState, form: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  const groupId = String(form.get("groupId"));
+  const group = await ownedGroup(groupId, user.id);
+  if (!group) return { error: "Group not found" };
+
+  const parsed = groupSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  await db.exerciseGroup.update({ where: { id: groupId }, data: { label: parsed.data.label || null } });
+  revalidatePath(editPath(group.day.splitId, group.day.id));
+  return { ok: "Saved" };
+}
+
 export async function deleteGroup(form: FormData) {
   const user = await requireUser();
   const groupId = String(form.get("groupId"));
@@ -66,6 +80,7 @@ const rulebookSchema = z
     repCeiling: z.coerce.number().int().min(1, "Required").max(50),
     repStep: z.coerce.number().int().min(1, "Required").max(20),
     weightStep: z.coerce.number().min(0).max(500),
+    startingWeight: z.coerce.number().min(0).max(1000).default(0),
   })
   .refine((d) => d.repCeiling >= d.repFloor, { message: "Rep ceiling must be ≥ rep floor", path: ["repCeiling"] });
 
@@ -126,6 +141,7 @@ export async function createSlot(_: ActionState, form: FormData): Promise<Action
 const slotUpdateSchema = z.object({
   slotId: z.string().min(1),
   trackingMode: z.enum(["PROGRESSIVE", "MANUAL"]),
+  loadType: z.enum(["WEIGHTED", "ASSISTED", "BODYWEIGHT"]),
   notes: z.string().trim().max(200).optional().or(z.literal("")),
 });
 
@@ -150,20 +166,35 @@ export async function updateSlot(_: ActionState, form: FormData): Promise<Action
     manual = parsedManual.data;
   }
 
-  await db.exerciseSlot.update({
-    where: { id: slot.id },
-    data: {
-      trackingMode: base.data.trackingMode,
-      notes: base.data.notes || null,
-      targetSets: rulebook?.targetSets ?? manual?.targetSets ?? null,
-      repFloor: rulebook?.repFloor ?? null,
-      repCeiling: rulebook?.repCeiling ?? null,
-      repStep: rulebook?.repStep ?? null,
-      weightStep: rulebook?.weightStep ?? null,
-      targetReps: manual?.targetReps ?? null,
-      targetWeight: manual?.targetWeight ?? null,
-    },
-  });
+  // Load type lives on the shared Exercise, not the slot — changing it affects
+  // every split that uses this exercise. The old progression weight no longer
+  // means anything under the new load type (e.g. assistance vs. added load),
+  // so wipe it everywhere it's used; it reseeds from startingWeight next pick.
+  const loadTypeChanged = base.data.loadType !== slot.exercise.loadType;
+
+  await db.$transaction([
+    db.exerciseSlot.update({
+      where: { id: slot.id },
+      data: {
+        trackingMode: base.data.trackingMode,
+        notes: base.data.notes || null,
+        targetSets: rulebook?.targetSets ?? manual?.targetSets ?? null,
+        repFloor: rulebook?.repFloor ?? null,
+        repCeiling: rulebook?.repCeiling ?? null,
+        repStep: rulebook?.repStep ?? null,
+        weightStep: rulebook?.weightStep ?? null,
+        startingWeight: rulebook?.startingWeight ?? null,
+        targetReps: manual?.targetReps ?? null,
+        targetWeight: manual?.targetWeight ?? null,
+      },
+    }),
+    ...(loadTypeChanged
+      ? [
+          db.exercise.update({ where: { id: slot.exerciseId }, data: { loadType: base.data.loadType } }),
+          db.slotProgress.deleteMany({ where: { slot: { exerciseId: slot.exerciseId } } }),
+        ]
+      : []),
+  ]);
   revalidatePath(editPath(slot.group.day.splitId, slot.group.day.id));
   return { ok: "Saved" };
 }

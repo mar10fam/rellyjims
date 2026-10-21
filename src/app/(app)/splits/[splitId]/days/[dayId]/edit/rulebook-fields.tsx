@@ -14,6 +14,7 @@ type RulebookDefaults = {
   repCeiling?: number | null;
   repStep?: number | null;
   weightStep?: number | null;
+  startingWeight?: number | null;
   targetReps?: number | null;
   targetWeight?: number | null;
 };
@@ -87,7 +88,18 @@ export function RulebookFields({
             <Field label="Rep floor" name="repFloor" inputRef={repFloor} defaultValue={defaults?.repFloor} />
             <Field label="Rep ceiling" name="repCeiling" inputRef={repCeiling} defaultValue={defaults?.repCeiling} />
             <Field label="Rep step" name="repStep" inputRef={repStep} defaultValue={defaults?.repStep} />
+            <Field
+              label="Starting weight"
+              name="startingWeight"
+              defaultValue={defaults?.startingWeight ?? 0}
+              step="0.5"
+              required={false}
+            />
           </div>
+          <p className="text-xs text-muted-foreground">
+            Starting weight only seeds the first workout — once progress has begun, adjust it from the workout
+            screen instead.
+          </p>
         </>
       )}
 
@@ -108,12 +120,14 @@ function Field({
   defaultValue,
   step,
   inputRef,
+  required = true,
 }: {
   label: string;
   name: string;
   defaultValue?: number | null;
   step?: string;
   inputRef?: RefObject<HTMLInputElement | null>;
+  required?: boolean;
 }) {
   return (
     <div className="grid gap-1">
@@ -129,7 +143,7 @@ function Field({
         step={step ?? "1"}
         min={0}
         defaultValue={defaultValue ?? undefined}
-        required
+        required={required}
         className={numberClass}
       />
     </div>
