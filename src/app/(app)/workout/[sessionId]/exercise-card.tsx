@@ -43,6 +43,13 @@ export function ExerciseCard({
   // weight but is editable right up until a quick Hold/Graduate tap, so
   // "the gym only had different plates" doesn't require the full edit panel.
   const [weight, setWeight] = useState(ex.plannedWeight ?? 0);
+  const [sets, setSets] = useState(ex.plannedSets ?? 0);
+  const [reps, setReps] = useState(ex.plannedReps ?? 0);
+  const repRange =
+    ex.slot?.repFloor != null && ex.slot?.repCeiling != null
+      ? { floor: ex.slot.repFloor, ceiling: ex.slot.repCeiling }
+      : undefined;
+  const quickValid = sets >= 1 && (!repRange || (reps >= repRange.floor && reps <= repRange.ceiling));
 
   function submit(outcome: "HELD" | "GRADUATED" | "FAILED" | "LOGGED", actual?: { sets: number; reps: number; weight: number }) {
     startTransition(async () => {
@@ -50,6 +57,8 @@ export function ExerciseCard({
         sessionExerciseId: ex.id,
         outcome,
         weightOverride: actual ? undefined : weight,
+        setsOverride: actual ? undefined : sets,
+        repsOverride: actual ? undefined : reps,
         actualSets: actual?.sets,
         actualReps: actual?.reps,
         actualWeight: actual?.weight,
@@ -57,8 +66,8 @@ export function ExerciseCard({
       if (!res.ok) return;
       const updates: Partial<SessionExercise> = {
         outcome,
-        actualSets: actual?.sets ?? ex.plannedSets,
-        actualReps: actual?.reps ?? ex.plannedReps,
+        actualSets: actual?.sets ?? sets,
+        actualReps: actual?.reps ?? reps,
         actualWeight: actual?.weight ?? weight,
         nextSets: res.next?.sets ?? null,
         nextReps: res.next?.reps ?? null,
@@ -95,16 +104,20 @@ export function ExerciseCard({
     <Card title={ex.exerciseName} exerciseMeta={ex.exercise}>
       {ex.trackingMode === "PROGRESSIVE" ? (
         <>
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="text-3xl font-black">
-              {ex.plannedSets} × {ex.plannedReps}
-            </p>
-            {!editingOutcome && (
-              <div className="w-24">
-                <NumberField label="Weight" value={weight} onChange={setWeight} step={0.5} />
-              </div>
-            )}
-          </div>
+          {!editingOutcome && (
+            <div className="grid grid-cols-3 gap-2">
+              <NumberField label="Sets" value={sets} onChange={setSets} />
+              <NumberField
+                label="Reps"
+                value={reps}
+                onChange={setReps}
+                min={repRange?.floor}
+                max={repRange?.ceiling}
+                invalid={!quickValid}
+              />
+              <NumberField label="Weight" value={weight} onChange={setWeight} step={0.5} />
+            </div>
+          )}
 
           {!editingOutcome ? (
             <>
@@ -112,10 +125,10 @@ export function ExerciseCard({
                 <Button type="button" variant="destructive" disabled={pending} onClick={() => setEditingOutcome("FAILED")}>
                   Flunk
                 </Button>
-                <Button type="button" variant="secondary" disabled={pending} onClick={() => submit("HELD")}>
+                <Button type="button" variant="secondary" disabled={pending || !quickValid} onClick={() => submit("HELD")}>
                   Hold
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => submit("GRADUATED")}>
+                <Button type="button" disabled={pending || !quickValid} onClick={() => submit("GRADUATED")}>
                   Graduate
                 </Button>
               </div>
@@ -130,12 +143,8 @@ export function ExerciseCard({
             </>
           ) : (
             <ActualInput
-              defaults={{ sets: ex.plannedSets ?? 0, reps: ex.plannedReps ?? 0, weight }}
-              repRange={
-                ex.slot?.repFloor != null && ex.slot?.repCeiling != null
-                  ? { floor: ex.slot.repFloor, ceiling: ex.slot.repCeiling }
-                  : undefined
-              }
+              defaults={{ sets, reps, weight }}
+              repRange={repRange}
               pending={pending}
               confirmLabel={editingOutcome === "FAILED" ? "Confirm Flunk" : "Confirm Graduate"}
               onCancel={() => setEditingOutcome(null)}
@@ -282,6 +291,23 @@ function NumberField({
   max?: number;
   invalid?: boolean;
 }) {
+  // Text draft so typing "150" over "0" never shows "0150", and the field can
+  // be cleared while typing; the numeric value is reported on every keystroke.
+  const [draft, setDraft] = useState(String(value));
+  const allowDecimal = (step ?? 1) < 1;
+
+  function handleChange(raw: string) {
+    let v = raw.replace(allowDecimal ? /[^\d.]/g : /\D/g, "");
+    if (allowDecimal) {
+      const [whole, ...rest] = v.split(".");
+      v = rest.length ? `${whole}.${rest.join("")}` : whole;
+    }
+    v = v.replace(/^0+(?=\d)/, "");
+    setDraft(v);
+    const n = Number(v);
+    onChange(Number.isFinite(n) ? n : 0);
+  }
+
   return (
     <label className="grid gap-1 text-center text-xs text-muted-foreground">
       {label}
@@ -291,13 +317,12 @@ function NumberField({
         </span>
       )}
       <input
-        type="number"
-        inputMode="decimal"
-        step={step ?? 1}
-        min={min}
-        max={max}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        type="text"
+        inputMode={allowDecimal ? "decimal" : "numeric"}
+        value={draft}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => handleChange(e.target.value)}
+        onBlur={() => setDraft(String(value))}
         className={`h-11 w-full rounded-lg border bg-transparent text-center text-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 ${
           invalid ? "border-destructive focus-visible:border-destructive" : "border-input focus-visible:border-ring"
         }`}

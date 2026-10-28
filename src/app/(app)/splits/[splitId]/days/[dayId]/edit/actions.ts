@@ -53,7 +53,16 @@ export async function deleteGroup(form: FormData) {
   const group = await ownedGroup(groupId, user.id);
   if (!group) return;
 
-  await db.exerciseGroup.delete({ where: { id: groupId } });
+  // Close the gap so remaining groups stay numbered 1..n.
+  const remaining = await db.exerciseGroup.findMany({
+    where: { dayId: group.day.id, id: { not: groupId } },
+    orderBy: { order: "asc" },
+    select: { id: true },
+  });
+  await db.$transaction([
+    db.exerciseGroup.delete({ where: { id: groupId } }),
+    ...remaining.map((g, i) => db.exerciseGroup.update({ where: { id: g.id }, data: { order: i + 1 } })),
+  ]);
   revalidatePath(editPath(group.day.splitId, group.day.id));
 }
 

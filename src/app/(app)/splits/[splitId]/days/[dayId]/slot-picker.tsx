@@ -13,6 +13,8 @@ type Slot = {
   id: string;
   trackingMode: "PROGRESSIVE" | "MANUAL";
   targetSets: number | null;
+  targetReps: number | null;
+  targetWeight: number | null;
   repFloor: number | null;
   repCeiling: number | null;
   progress: { sets: number; reps: number; weight: number } | null;
@@ -116,10 +118,10 @@ export function SlotPicker({
       {initialExercises.length > 0 && <TodaysOrder sessionId={sessionId} exercises={initialExercises} />}
 
       <div className="grid gap-4">
-        {groups.map((group) => (
+        {groups.map((group, i) => (
           <section key={group.id} className="grid gap-2">
             <h2 className="text-sm font-semibold text-muted-foreground">
-              Group {group.order}
+              Group {i + 1}
               {group.label && ` · ${group.label}`}
             </h2>
             <ul className="grid gap-2">
@@ -183,11 +185,16 @@ export function SlotPicker({
 function plannedPreview(slot: {
   trackingMode: "PROGRESSIVE" | "MANUAL";
   targetSets: number | null;
+  targetReps: number | null;
+  targetWeight: number | null;
   repFloor: number | null;
   repCeiling: number | null;
   progress: { sets: number; reps: number; weight: number } | null;
 }) {
-  if (slot.trackingMode === "MANUAL") return "Manual";
+  if (slot.trackingMode === "MANUAL") {
+    if (slot.targetSets == null || slot.targetReps == null) return "Manual";
+    return `${slot.targetSets}×${slot.targetReps}${slot.targetWeight ? ` @ ${slot.targetWeight}` : ""}`;
+  }
   if (slot.progress) return `${slot.progress.sets}×${slot.progress.reps}${slot.progress.weight ? ` @ ${slot.progress.weight}` : ""}`;
   return `${slot.targetSets}×${slot.repFloor}–${slot.repCeiling}`;
 }

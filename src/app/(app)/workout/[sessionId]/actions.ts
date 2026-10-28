@@ -30,6 +30,9 @@ export async function submitOutcome(input: {
    * weight would, but leaves sets/reps to follow the outcome's normal rules.
    */
   weightOverride?: number;
+  /** Same idea as weightOverride, for sets/reps changed mid-workout. */
+  setsOverride?: number;
+  repsOverride?: number;
 }): Promise<SubmitResult> {
   const user = await requireUser();
   const ex = await ownedSessionExercise(input.sessionExerciseId, user.id);
@@ -58,9 +61,18 @@ export async function submitOutcome(input: {
   if (input.weightOverride !== undefined && input.weightOverride < 0) {
     return { ok: false, error: "Weight can't be negative" };
   }
+  if (
+    (input.setsOverride !== undefined && (!Number.isInteger(input.setsOverride) || input.setsOverride < 1)) ||
+    (input.repsOverride !== undefined &&
+      (!Number.isInteger(input.repsOverride) ||
+        input.repsOverride < rules.repFloor ||
+        input.repsOverride > rules.repCeiling))
+  ) {
+    return { ok: false, error: "Invalid sets or reps" };
+  }
   const cur = {
-    sets: progress.sets,
-    reps: progress.reps,
+    sets: input.setsOverride ?? progress.sets,
+    reps: input.repsOverride ?? progress.reps,
     weight: input.weightOverride ?? progress.weight,
     failStreak: progress.failStreak,
   };

@@ -17,7 +17,7 @@ export type Group = {
   slots: Slot[];
 };
 
-export function GroupCard({ group, exerciseNames }: { group: Group; exerciseNames: string[] }) {
+export function GroupCard({ group, number, exerciseNames }: { group: Group; number: number; exerciseNames: string[] }) {
   const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState<ActionState, FormData>(updateGroupLabel, null);
 
@@ -36,7 +36,7 @@ export function GroupCard({ group, exerciseNames }: { group: Group; exerciseName
         {editing ? (
           <form action={action} className="flex flex-1 items-center gap-2">
             <input type="hidden" name="groupId" value={group.id} />
-            <span className="shrink-0 text-sm font-medium">Group {group.order} ·</span>
+            <span className="shrink-0 text-sm font-medium">Group {number} ·</span>
             <Input
               name="label"
               defaultValue={group.label ?? ""}
@@ -51,7 +51,7 @@ export function GroupCard({ group, exerciseNames }: { group: Group; exerciseName
           </form>
         ) : (
           <CardTitle className="flex items-center gap-1.5">
-            Group {group.order}
+            Group {number}
             {group.label && <span className="text-muted-foreground"> · {group.label}</span>}
             <button
               type="button"

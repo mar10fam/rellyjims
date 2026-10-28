@@ -74,16 +74,16 @@ export function GroupList({ dayId, groups, exerciseNames }: { dayId: string; gro
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((g) => g.id)} strategy={verticalListSortingStrategy}>
             <ol className="grid gap-2">
-              {items.map((group) => (
-                <DraggableGroupRow key={group.id} group={group} />
+              {items.map((group, i) => (
+                <DraggableGroupRow key={group.id} group={group} number={i + 1} />
               ))}
             </ol>
           </SortableContext>
         </DndContext>
       ) : (
         <div className="grid gap-4">
-          {items.map((group) => (
-            <GroupCard key={group.id} group={group} exerciseNames={exerciseNames} />
+          {items.map((group, i) => (
+            <GroupCard key={group.id} group={group} number={i + 1} exerciseNames={exerciseNames} />
           ))}
         </div>
       )}
@@ -91,7 +91,7 @@ export function GroupList({ dayId, groups, exerciseNames }: { dayId: string; gro
   );
 }
 
-function DraggableGroupRow({ group }: { group: Group }) {
+function DraggableGroupRow({ group, number }: { group: Group; number: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: group.id });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -102,7 +102,7 @@ function DraggableGroupRow({ group }: { group: Group }) {
       className={`flex items-center gap-2 rounded-xl bg-neutral-900 px-3 py-2 ${isDragging ? "z-10 ring-1 ring-primary/50" : ""}`}
     >
       <span className="min-w-0 flex-1 font-medium">
-        Group {group.order}
+        Group {number}
         {group.label && <span className="text-muted-foreground"> · {group.label}</span>}
       </span>
       <button
