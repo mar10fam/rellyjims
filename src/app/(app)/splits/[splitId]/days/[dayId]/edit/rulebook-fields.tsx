@@ -104,11 +104,14 @@ export function RulebookFields({
       )}
 
       {trackingMode === "MANUAL" && (
+        <>
         <div className="grid grid-cols-3 gap-3">
-          <Field label="Sets" name="targetSets" defaultValue={defaults?.targetSets} />
-          <Field label="Reps" name="targetReps" defaultValue={defaults?.targetReps} />
-          <Field label="Weight" name="targetWeight" defaultValue={defaults?.targetWeight} step="0.5" />
+          <Field label="Sets" name="targetSets" defaultValue={defaults?.targetSets} required={false} />
+          <Field label="Reps" name="targetReps" defaultValue={defaults?.targetReps} required={false} />
+          <Field label="Weight" name="targetWeight" defaultValue={defaults?.targetWeight} step="0.5" required={false} />
         </div>
+        <p className="text-xs text-muted-foreground">All optional — leave blank to fill in during the workout.</p>
+        </>
       )}
     </div>
   );

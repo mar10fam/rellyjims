@@ -10,6 +10,7 @@ import { CancelActiveWorkoutLink } from "./cancel-session-button";
 import { ExerciseCard, type SessionExercise } from "./exercise-card";
 import { FinishButton } from "./finish-button";
 import { OtherExercises, type PoolSlot } from "./other-exercises";
+import { formatSetsRepsWeight } from "@/lib/utils";
 
 export function WorkoutCarousel({
   sessionId,
@@ -195,6 +196,5 @@ function DoneList({ exercises }: { exercises: SessionExercise[] }) {
 }
 
 function formatTarget(sets: number | null, reps: number | null, weight: number | null) {
-  if (sets == null || reps == null) return "—";
-  return `${sets}×${reps}${weight ? ` @ ${weight}` : ""}`;
+  return formatSetsRepsWeight(sets, reps, weight) || "—";
 }

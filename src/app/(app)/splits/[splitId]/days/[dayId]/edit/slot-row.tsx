@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { loadTypeLabel } from "@/lib/progression";
 import { deleteSlot } from "./actions";
 import { EditSlotForm } from "./slot-form";
+import { formatSetsRepsWeight } from "@/lib/utils";
 
 export type Slot = {
   id: string;
@@ -73,7 +74,7 @@ export function SlotRow({ slot }: { slot: Slot }) {
 
 function rulebookSummary(slot: Slot) {
   if (slot.trackingMode === "MANUAL") {
-    return `${slot.targetSets}×${slot.targetReps}${slot.targetWeight ? ` @ ${slot.targetWeight}` : ""}`;
+    return formatSetsRepsWeight(slot.targetSets, slot.targetReps, slot.targetWeight) || "Set during workout";
   }
   return `${slot.targetSets}×${slot.repFloor}–${slot.repCeiling}${slot.weightStep ? ` · +${slot.weightStep}` : ""}`;
 }

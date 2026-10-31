@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { syncSelection, startWorkout } from "./actions";
 import { TodaysOrder } from "./today-order";
+import { formatSetsRepsWeight } from "@/lib/utils";
 
 type Slot = {
   id: string;
@@ -192,8 +193,7 @@ function plannedPreview(slot: {
   progress: { sets: number; reps: number; weight: number } | null;
 }) {
   if (slot.trackingMode === "MANUAL") {
-    if (slot.targetSets == null || slot.targetReps == null) return "Manual";
-    return `${slot.targetSets}×${slot.targetReps}${slot.targetWeight ? ` @ ${slot.targetWeight}` : ""}`;
+    return formatSetsRepsWeight(slot.targetSets, slot.targetReps, slot.targetWeight) || "Manual";
   }
   if (slot.progress) return `${slot.progress.sets}×${slot.progress.reps}${slot.progress.weight ? ` @ ${slot.progress.weight}` : ""}`;
   return `${slot.targetSets}×${slot.repFloor}–${slot.repCeiling}`;

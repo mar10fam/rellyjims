@@ -5,6 +5,7 @@ import { ownedSession } from "@/lib/workouts";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatSetsRepsWeight } from "@/lib/utils";
 
 // Reads the session directly (not behind its own Suspense boundary); see
 // (app)/layout.tsx for why this opts out of instant-navigation validation.
@@ -38,10 +39,9 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
               <li key={ex.id} className="flex items-center justify-between gap-3 rounded-xl bg-neutral-900 px-4 py-3">
                 <div className="min-w-0">
                   <p className="font-medium">{ex.exerciseName}</p>
-                  {ex.plannedSets != null && (
+                  {!!formatSetsRepsWeight(ex.plannedSets, ex.plannedReps, ex.plannedWeight) && (
                     <p className="text-xs text-muted-foreground">
-                      Planned {ex.plannedSets}×{ex.plannedReps}
-                      {ex.plannedWeight ? ` @ ${ex.plannedWeight}` : ""}
+                      Planned {formatSetsRepsWeight(ex.plannedSets, ex.plannedReps, ex.plannedWeight)}
                     </p>
                   )}
                 </div>
@@ -54,8 +54,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
                     </p>
                   ) : (
                     <p className="text-lg font-semibold">
-                      {ex.actualSets}×{ex.actualReps}
-                      {ex.actualWeight ? ` @ ${ex.actualWeight}` : ""}
+                      {formatTarget(ex.actualSets, ex.actualReps, ex.actualWeight)}
                     </p>
                   )}
                   <Badge variant="secondary" className={graduated ? "text-emerald-500" : undefined}>
@@ -109,8 +108,7 @@ export default async function Page({ params }: { params: Promise<{ sessionId: st
 }
 
 function formatTarget(sets: number | null, reps: number | null, weight: number | null) {
-  if (sets == null || reps == null) return "—";
-  return `${sets}×${reps}${weight ? ` @ ${weight}` : ""}`;
+  return formatSetsRepsWeight(sets, reps, weight) || "—";
 }
 
 function outcomeLabel(outcome: string) {

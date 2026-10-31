@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { loadTypeLabel, type LoadType } from "@/lib/progression";
 import { removeExercise, submitOutcome } from "./actions";
+import { formatSetsRepsWeight } from "@/lib/utils";
 
 export type SessionExercise = {
   id: string;
@@ -201,7 +202,7 @@ function DoneSummary({ ex }: { ex: SessionExercise }) {
     <div className="grid gap-1">
       <p className="text-2xl font-bold">
         {marker && <span className="mr-1 text-primary">{marker}</span>}
-        {ex.actualSets} × {ex.actualReps}
+        {formatSetsRepsWeight(ex.actualSets, ex.actualReps) || "Done"}
         {!!ex.actualWeight && <span className="text-muted-foreground text-xl"> @ {ex.actualWeight}</span>}
       </p>
       {ex.nextSets != null && (

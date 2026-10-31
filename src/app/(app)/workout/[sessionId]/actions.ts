@@ -44,9 +44,10 @@ export async function submitOutcome(input: {
       where: { id: ex.id },
       data: {
         outcome: "LOGGED",
-        actualSets: input.actualSets ?? null,
-        actualReps: input.actualReps ?? null,
-        actualWeight: input.actualWeight ?? null,
+        // 0 means "left blank" in the editable inputs — store as unset.
+        actualSets: input.actualSets || null,
+        actualReps: input.actualReps || null,
+        actualWeight: input.actualWeight || null,
         completedAt: new Date(),
       },
     });

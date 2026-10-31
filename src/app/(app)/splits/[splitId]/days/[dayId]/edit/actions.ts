@@ -93,11 +93,21 @@ const rulebookSchema = z
   })
   .refine((d) => d.repCeiling >= d.repFloor, { message: "Rep ceiling must be ≥ rep floor", path: ["repCeiling"] });
 
-const manualSchema = z.object({
-  targetSets: z.coerce.number().int().min(1, "Required").max(10),
-  targetReps: z.coerce.number().int().min(1, "Required").max(100),
-  targetWeight: z.coerce.number().min(0).max(1000),
-});
+// Every manual target is optional — leave any blank to set it during the workout (or never).
+const optionalNumber = (schema: z.ZodNumber) =>
+  z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().pipe(schema).optional());
+
+const manualSchema = z
+  .object({
+    targetSets: optionalNumber(z.number().int().min(1).max(10)),
+    targetReps: optionalNumber(z.number().int().min(1).max(100)),
+    targetWeight: optionalNumber(z.number().min(0).max(1000)),
+  })
+  .transform((d) => ({
+    targetSets: d.targetSets ?? null,
+    targetReps: d.targetReps ?? null,
+    targetWeight: d.targetWeight ?? null,
+  }));
 
 const slotBaseSchema = z.object({
   groupId: z.string().min(1),
